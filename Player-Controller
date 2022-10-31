@@ -1,0 +1,113 @@
+using System.Collections;
+using System.Collections.Generic;
+using Unity.Mathematics;
+using UnityEngine;
+
+public class PlayerMovement : MonoBehaviour
+{
+    private Rigidbody2D rb;
+    private BoxCollider2D boxCollider2D;
+
+    [Header("Run")]
+    [SerializeField] float acceleration;
+    [SerializeField] float decceleration;
+    [SerializeField] float maxSpeed;
+
+    [Header("GroundCheck")]
+    [SerializeField] LayerMask whatIsGround;
+    private bool isGrounded;
+
+    [Header("Jump")]
+    [SerializeField] float jumpForce;
+    [SerializeField] float coyoteTime;
+    private float coyoteCounter;
+
+    [Space]
+
+    [SerializeField] float jumpBufferTime;
+    private float jumpBufferCounter;
+
+
+    private Vector2 moveInput;
+
+
+    private void Awake()
+    {
+        rb = GetComponent<Rigidbody2D>();
+        boxCollider2D = GetComponent<BoxCollider2D>();
+    }
+
+    private void Update()
+    {
+        //coyoteTime
+        if (IsGrounded())
+        {
+            coyoteCounter = coyoteTime;
+        }
+        else
+        {
+            coyoteCounter -= Time.deltaTime; 
+        }
+
+        //jump buffer time
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            jumpBufferCounter = jumpBufferTime;
+        }
+        else
+        {
+            jumpBufferCounter -= Time.deltaTime;
+        }
+
+        Jump();
+        GetInput();
+    }
+
+    private void FixedUpdate()
+    {
+        Run();
+    }
+
+    private void GetInput()
+    {
+        moveInput.x = Input.GetAxisRaw("Horizontal");
+    }
+
+    private void Run()
+    {
+        float targetSpeed = moveInput.x * maxSpeed;
+
+        float speedDif = targetSpeed - rb.velocity.x;
+
+        float accelRate = (Mathf.Abs(targetSpeed) > 0.01f) ? acceleration : decceleration;
+
+        float movement = speedDif * accelRate;
+
+        rb.AddForce(movement * Vector2.right, ForceMode2D.Force);
+    }
+
+    private void Jump()
+    {
+        // Can coyote jump or jumpbuffer is not 0
+        if (jumpBufferCounter >= 0 && coyoteCounter > 0)
+        {
+            rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
+            jumpBufferCounter = 0;
+        }
+
+        // End the jump early if button released
+        if (Input.GetKeyUp(KeyCode.Space) && rb.velocity.y > 0)
+        {
+            rb.AddForce(Vector2.up * -rb.velocity.y * 0.5f, ForceMode2D.Impulse);
+        }
+
+    }
+
+    private bool IsGrounded()
+    {
+        RaycastHit2D raycastHit = Physics2D.Raycast(boxCollider2D.bounds.center, Vector2.down, boxCollider2D.bounds.extents.y + 0.1f, whatIsGround);       
+
+        return raycastHit.collider != null;
+    }
+
+}
